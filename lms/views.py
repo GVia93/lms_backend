@@ -1,3 +1,4 @@
+from django.db.models import Count
 from rest_framework import viewsets, generics
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
@@ -9,7 +10,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     Поддерживает полный CRUD.
     """
 
-    queryset = Course.objects.all().order_by("id")
+    queryset = Course.objects.annotate(lessons_count=Count("lessons")).order_by("id")
     serializer_class = CourseSerializer
 
 

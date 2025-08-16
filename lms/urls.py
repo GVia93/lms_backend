@@ -3,6 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import CourseViewSet, LessonListCreateAPIView, LessonRetrieveUpdateDestroyAPIView
 
 
+app_name = "lms"
+
 router = DefaultRouter()
 router.register(r"courses", CourseViewSet, basename="course")
 

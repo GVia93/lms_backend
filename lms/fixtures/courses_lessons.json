@@ -1,0 +1,4 @@
+[
+  { "model": "lms.course", "pk": 1, "fields": { "title": "Python 101", "description": "" } },
+  { "model": "lms.lesson", "pk": 1, "fields": { "course": 1, "title": "Введение", "description": "", "video_url": "" } }
+]

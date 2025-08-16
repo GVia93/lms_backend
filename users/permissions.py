@@ -1,8 +1,22 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import SAFE_METHODS, BasePermission
+
+
+class IsSelfOrStaff(BasePermission):
+    """
+    Доступ к изменению профиля:
+    - сам пользователь,
+    - либо staff.
+    Просматривать (SAFE_METHODS) можно любой профиль.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        return (obj == request.user) or bool(request.user and request.user.is_staff)
 
 
 class IsOwner(BasePermission):
-    """Доступ разрешён только владельцу объекта."""
+    """Доступ разрешён только владельцу объекта (по полю owner)."""
 
     def has_object_permission(self, request, view, obj):
         owner = getattr(obj, "owner", None)
@@ -10,7 +24,7 @@ class IsOwner(BasePermission):
 
 
 class IsModer(BasePermission):
-    """Разрешение для пользователей группы 'Модераторы'."""
+    """Доступ для пользователей из группы 'Модераторы'."""
 
     group_name = "Модераторы"
 
@@ -20,10 +34,9 @@ class IsModer(BasePermission):
 
 
 class ModerNoCreateNoDelete(BasePermission):
-    """Модератор НЕ может create/delete."""
+    """Модератор НЕ может создавать и удалять объекты (POST/DELETE)."""
 
     def has_permission(self, request, view):
-
         is_moder = IsModer().has_permission(request, view)
         if not is_moder:
             return True

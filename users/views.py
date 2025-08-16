@@ -4,24 +4,37 @@ from rest_framework import generics, permissions, viewsets
 from rest_framework.filters import OrderingFilter
 
 from .models import Payment
-from .serializers import PaymentSerializer, RegisterSerializer, UserSerializer
+from .permissions import IsSelfOrStaff
+from .serializers import PaymentSerializer, PrivateUserSerializer, PublicUserSerializer, RegisterSerializer
 
 User = get_user_model()
 
 
 class UserViewSet(viewsets.ModelViewSet):
     """
-    CRUD для пользователей:
-    - staff видят всех;
-    - обычные пользователи — только себя.
+    Управление профилями пользователей.
+
+    Доступ:
+    - Просмотр: любой аутентифицированный может видеть любой профиль (публичные поля).
+    - Редактирование/удаление: только сам пользователь или staff (полные поля).
     """
 
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    queryset = User.objects.all().order_by("id")
+    permission_classes = [permissions.IsAuthenticated, IsSelfOrStaff]
 
-    def get_queryset(self):
-        u = self.request.user
-        return User.objects.all() if u.is_staff else User.objects.filter(id=u.id)
+    def get_serializer_class(self):
+        """
+        Возвращает сериализатор в зависимости от действия и прав:
+        - update/partial_update: PrivateUserSerializer
+        - retrieve: PrivateUserSerializer для владельца/staff, иначе PublicUserSerializer
+        - list/прочее: PublicUserSerializer
+        """
+        if self.action in ("update", "partial_update"):
+            return PrivateUserSerializer
+        if self.action == "retrieve":
+            obj = self.get_object()
+            return PrivateUserSerializer if (obj == self.request.user or self.request.user.is_staff) else PublicUserSerializer
+        return PublicUserSerializer
 
 
 class RegisterAPIView(generics.CreateAPIView):
@@ -36,8 +49,7 @@ class RegisterAPIView(generics.CreateAPIView):
 
 class PaymentListAPIView(generics.ListAPIView):
     """
-    API для получения списка платежей.
-    Поддерживает фильтрацию и сортировку.
+    Список платежей с поддержкой фильтров и сортировки.
     """
 
     queryset = Payment.objects.select_related("user", "course", "lesson").order_by("-paid_at")

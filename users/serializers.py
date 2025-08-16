@@ -1,15 +1,21 @@
-from .models import Payment
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from .models import Payment
 
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
-    """
-    Сериализатор для отображения информации о пользователе.
-    """
+class PublicUserSerializer(serializers.ModelSerializer):
+    """Публичный профиль пользователя (без фамилии, пароля и истории платежей)."""
+
+    class Meta:
+        model = User
+        fields = ("id", "email", "first_name", "city", "avatar")
+
+
+class PrivateUserSerializer(serializers.ModelSerializer):
+    """Приватный профиль (полная информация о пользователе)."""
 
     class Meta:
         model = User
@@ -30,6 +36,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ("id", "email", "password", "first_name", "last_name", "phone", "city", "avatar")
 
     def create(self, validated_data):
+        """Создаёт нового пользователя с хэшированным паролем."""
         pwd = validated_data.pop("password")
         user = User(**validated_data)
         user.set_password(pwd)
@@ -40,7 +47,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class PaymentSerializer(serializers.ModelSerializer):
     """
     Сериализатор для модели Payment.
-    Служит для отображения и создания платежей.
+    Используется для отображения и создания платежей.
     """
 
     class Meta:

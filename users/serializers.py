@@ -15,25 +15,42 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
 
 class PrivateUserSerializer(serializers.ModelSerializer):
-    """Приватный профиль (полная информация о пользователе)."""
+    """Приватный профиль пользователя с полной информацией."""
 
     class Meta:
         model = User
-        fields = ("id", "email", "first_name", "last_name", "phone", "city", "avatar")
-        read_only_fields = ("id",)
+        fields = (
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+            "city",
+            "avatar",
+            "payments",
+        )
 
 
 class RegisterSerializer(serializers.ModelSerializer):
     """
     Сериализатор для регистрации нового пользователя.
-    Хэширует пароль перед сохранением.
+    Пароль хэшируется перед сохранением.
     """
 
     password = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
         model = User
-        fields = ("id", "email", "password", "first_name", "last_name", "phone", "city", "avatar")
+        fields = (
+            "id",
+            "email",
+            "password",
+            "first_name",
+            "last_name",
+            "phone",
+            "city",
+            "avatar",
+        )
 
     def create(self, validated_data):
         """Создаёт нового пользователя с хэшированным паролем."""
@@ -47,10 +64,30 @@ class RegisterSerializer(serializers.ModelSerializer):
 class PaymentSerializer(serializers.ModelSerializer):
     """
     Сериализатор для модели Payment.
-    Используется для отображения и создания платежей.
+    Отображает данные о платеже и цель платежа (курс или урок).
     """
+
+    target_type = serializers.SerializerMethodField()
+    target_title = serializers.SerializerMethodField()
 
     class Meta:
         model = Payment
-        fields = ["id", "user", "paid_at", "course", "lesson", "amount", "payment_method"]
-        read_only_fields = ["paid_at"]
+        fields = (
+            "id",
+            "amount",
+            "payment_method",
+            "paid_at",
+            "course",
+            "lesson",
+            "target_type",
+            "target_title",
+        )
+        read_only_fields = ("paid_at",)
+
+    def get_target_type(self, obj):
+        """Возвращает тип цели: course или lesson."""
+        return "course" if obj.course else "lesson"
+
+    def get_target_title(self, obj):
+        """Возвращает название курса или урока, за который был платёж."""
+        return obj.course.title if obj.course else obj.lesson.title

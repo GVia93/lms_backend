@@ -49,11 +49,20 @@ class RegisterAPIView(generics.CreateAPIView):
 
 class PaymentListAPIView(generics.ListAPIView):
     """
-    Список платежей с поддержкой фильтров и сортировки.
+    API для списка платежей.
+    - Staff видит все платежи.
+    - Обычный пользователь видит только свои.
+    Поддерживается фильтрация и сортировка.
     """
 
-    queryset = Payment.objects.select_related("user", "course", "lesson").order_by("-paid_at")
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = PaymentSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["course", "lesson", "payment_method", "user"]
-    ordering_fields = ["paid_at"]
+    filterset_fields = ["course", "lesson", "payment_method"]
+    ordering_fields = ["paid_at", "amount"]
+    ordering = ["-paid_at"]
+
+    def get_queryset(self):
+        """Возвращает QuerySet с фильтрацией по пользователю, если он не staff."""
+        qs = Payment.objects.select_related("user", "course", "lesson")
+        return qs if self.request.user.is_staff else qs.filter(user=self.request.user)

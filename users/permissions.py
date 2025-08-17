@@ -14,6 +14,9 @@ class IsSelfOrStaff(BasePermission):
             return True
         return (obj == request.user) or bool(request.user and request.user.is_staff)
 
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
 
 class IsOwner(BasePermission):
     """Доступ разрешён только владельцу объекта (по полю owner)."""

@@ -18,7 +18,7 @@ class CustomUserAdmin(admin.ModelAdmin):
         Админ-панель для модели Payment.
         Отображает платежи, позволяет фильтровать и искать по email пользователя.
         """
-        
-        list_display = ("id", "user", "paid_at", "course", "lesson", "amount", "payment_method")
+
+        list_display = ("id", "user", "amount", "payment_method", "paid_at", "course", "lesson")
         list_filter = ("payment_method", "paid_at")
-        search_fields = ("user__email",)
+        search_fields = ("user__email", "course__title", "lesson__title")

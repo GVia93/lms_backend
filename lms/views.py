@@ -1,7 +1,7 @@
 from django.db.models import Count
 from rest_framework import generics, permissions, viewsets
 
-from users.permissions import IsModer, IsOwner, ModerNoCreateNoDelete
+from users.permissions import IsModer, IsOwner, ModerNoCreateNoDelete, IsModerOrOwner
 
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
@@ -17,8 +17,22 @@ class CourseViewSet(viewsets.ModelViewSet):
     - Удаление доступно только владельцу.
     """
 
-    queryset = Course.objects.annotate(lessons_count=Count("lessons")).order_by("id")
+    queryset = Course.objects.annotate(lessons_count=Count("lessons")).order_by("id").prefetch_related("lessons")
     serializer_class = CourseSerializer
+
+    def get_serializer_class(self):
+        """
+        Возвращает сериализатор для текущего действия:
+        - retrieve → детальный сериализатор с полным списком уроков;
+        - остальные действия → базовый CourseSerializer.
+        """
+
+        if self.action == "retrieve":
+            class CourseDetailSerializer(CourseSerializer):
+                lessons = LessonSerializer(many=True, read_only=True)
+
+            return CourseDetailSerializer
+        return CourseSerializer
 
     def get_queryset(self):
         """Возвращает список курсов: всем модераторам или только свои для обычного пользователя."""
@@ -34,12 +48,14 @@ class CourseViewSet(viewsets.ModelViewSet):
         - удаление — только владелец,
         - создание ограничено ModerNoCreateNoDelete.
         """
-        perms = [permissions.IsAuthenticated, ModerNoCreateNoDelete]
+
         if self.action in ["retrieve", "update", "partial_update"]:
-            perms.append(IsModer | IsOwner)
+            perms = [permissions.IsAuthenticated, ModerNoCreateNoDelete, IsModerOrOwner]
         elif self.action == "destroy":
-            perms.append(IsOwner)
-        return [p() if isinstance(p, type) else p for p in perms]
+            perms = [permissions.IsAuthenticated, ModerNoCreateNoDelete, IsOwner]
+        else:
+            perms = [permissions.IsAuthenticated, ModerNoCreateNoDelete]
+        return [p() for p in perms]
 
     def perform_create(self, serializer):
         """При создании курса автоматически назначает владельцем текущего пользователя."""

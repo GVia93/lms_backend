@@ -3,6 +3,7 @@ from django.db import models
 from django.conf import settings
 from django.db.models import Q, CheckConstraint
 from lms.models import Course, Lesson
+from django.core.validators import MinValueValidator
 
 
 class User(AbstractUser):
@@ -51,7 +52,11 @@ class Payment(models.Model):
     lesson = models.ForeignKey(
         Lesson, on_delete=models.CASCADE, null=True, blank=True, related_name="payments"
     )
-    amount = models.DecimalField("сумма", max_digits=10, decimal_places=2)
+    amount = models.DecimalField(
+        "сумма", max_digits=10, decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    paid_at = models.DateTimeField("дата оплаты", auto_now_add=True, db_index=True)
     payment_method = models.CharField("способ оплаты", max_length=16, choices=Method.choices)
 
     class Meta:

@@ -1,6 +1,18 @@
 from django.contrib import admin
 
-from .models import Course, Lesson
+from .models import Course, Lesson, Subscription
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    """
+    Админка для модели Subscription.
+    Отображает список подписок на курсы.
+    """
+
+    list_display = ("id", "user", "course", "created_at")
+    list_filter = ("course", "created_at")
+    search_fields = ("user__email", "course__title")
 
 
 class LessonInline(admin.TabularInline):

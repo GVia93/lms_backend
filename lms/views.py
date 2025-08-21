@@ -1,10 +1,37 @@
 from django.db.models import Count
-from rest_framework import generics, permissions, viewsets
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, permissions, views, viewsets
+from rest_framework.response import Response
 
-from users.permissions import IsModer, IsOwner, ModerNoCreateNoDelete
+from users.permissions import IsModer, IsOwner
 
-from .models import Course, Lesson
+from .models import Course, Lesson, Subscription
+from .paginators import DefaultPageNumberPagination
 from .serializers import CourseSerializer, LessonSerializer
+
+
+class SubscriptionToggleAPIView(views.APIView):
+    """
+    Переключение подписки пользователя на курс.
+    POST:
+      - если подписка существует — удалить;
+      - если нет — создать.
+    Ответ: {message, course, is_subscribed}.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        """Создаёт или удаляет подписку текущего пользователя на указанный курс."""
+        course = get_object_or_404(Course, pk=request.data.get("course"))
+        qs = Subscription.objects.filter(user=request.user, course=course)
+
+        if qs.exists():
+            qs.delete()
+            return Response({"message": "подписка удалена", "course": course.id, "is_subscribed": False})
+
+        Subscription.objects.create(user=request.user, course=course)
+        return Response({"message": "подписка добавлена", "course": course.id, "is_subscribed": True})
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -19,6 +46,16 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     queryset = Course.objects.annotate(lessons_count=Count("lessons")).order_by("id").prefetch_related("lessons")
     serializer_class = CourseSerializer
+    pagination_class = DefaultPageNumberPagination
+
+    def get_serializer_context(self):
+        """
+        Добавляем в контекст сериализатора объект request.
+        Это позволяет сериализатору знать, какой пользователь сделал запрос.
+        """
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
     def get_serializer_class(self):
         """
@@ -77,6 +114,7 @@ class LessonListCreateAPIView(generics.ListCreateAPIView):
 
     queryset = Lesson.objects.all().order_by("id")
     serializer_class = LessonSerializer
+    pagination_class = DefaultPageNumberPagination
 
     def get_permissions(self):
         """GET — IsAuthenticated; POST — IsAuthenticated и НЕ модератор."""

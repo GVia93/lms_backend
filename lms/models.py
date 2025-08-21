@@ -2,6 +2,35 @@ from django.conf import settings
 from django.db import models
 
 
+class Subscription(models.Model):
+    """
+    Модель подписки пользователя на курс.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="course_subscriptions",
+        verbose_name="Пользователь",
+    )
+    course = models.ForeignKey(
+        "lms.Course",
+        on_delete=models.CASCADE,
+        related_name="subscriptions",
+        verbose_name="Курс",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата подписки")
+
+    class Meta:
+        unique_together = ("user", "course")
+        verbose_name = "Подписка на курс"
+        verbose_name_plural = "Подписки на курс"
+
+    def __str__(self):
+        """Возвращает строковое представление подписки."""
+        return f"{self.user} → {self.course}"
+
+
 class Course(models.Model):
     """
     Модель курса.

@@ -1,10 +1,37 @@
 from django.db.models import Count
-from rest_framework import generics, permissions, viewsets
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, permissions, views, viewsets
+from rest_framework.response import Response
 
-from users.permissions import IsModer, IsOwner, ModerNoCreateNoDelete, IsModerOrOwner
+from users.permissions import IsModer, IsOwner
 
-from .models import Course, Lesson
+from .models import Course, Lesson, Subscription
+from .paginators import DefaultPageNumberPagination
 from .serializers import CourseSerializer, LessonSerializer
+
+
+class SubscriptionToggleAPIView(views.APIView):
+    """
+    Переключение подписки пользователя на курс.
+    POST:
+      - если подписка существует — удалить;
+      - если нет — создать.
+    Ответ: {message, course, is_subscribed}.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        """Создаёт или удаляет подписку текущего пользователя на указанный курс."""
+        course = get_object_or_404(Course, pk=request.data.get("course"))
+        qs = Subscription.objects.filter(user=request.user, course=course)
+
+        if qs.exists():
+            qs.delete()
+            return Response({"message": "подписка удалена", "course": course.id, "is_subscribed": False})
+
+        Subscription.objects.create(user=request.user, course=course)
+        return Response({"message": "подписка добавлена", "course": course.id, "is_subscribed": True})
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -19,6 +46,16 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     queryset = Course.objects.annotate(lessons_count=Count("lessons")).order_by("id").prefetch_related("lessons")
     serializer_class = CourseSerializer
+    pagination_class = DefaultPageNumberPagination
+
+    def get_serializer_context(self):
+        """
+        Добавляем в контекст сериализатора объект request.
+        Это позволяет сериализатору знать, какой пользователь сделал запрос.
+        """
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
     def get_serializer_class(self):
         """
@@ -28,7 +65,9 @@ class CourseViewSet(viewsets.ModelViewSet):
         """
 
         if self.action == "retrieve":
+
             class CourseDetailSerializer(CourseSerializer):
+                """Детальный сериализатор курса со списком уроков."""
                 lessons = LessonSerializer(many=True, read_only=True)
 
             return CourseDetailSerializer
@@ -43,18 +82,20 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
-        Определяет права доступа:
-        - просмотр/редактирование — модератор или владелец,
-        - удаление — только владелец,
-        - создание ограничено ModerNoCreateNoDelete.
+        Правила доступа:
+        - list: IsAuthenticated
+        - create: IsAuthenticated и НЕ модератор
+        - update/partial_update/retrieve: модератор ИЛИ владелец
+        - destroy: только владелец
         """
-
-        if self.action in ["retrieve", "update", "partial_update"]:
-            perms = [permissions.IsAuthenticated, ModerNoCreateNoDelete, IsModerOrOwner]
-        elif self.action == "destroy":
-            perms = [permissions.IsAuthenticated, ModerNoCreateNoDelete, IsOwner]
+        if self.action == "list":
+            perms = [permissions.IsAuthenticated]
+        elif self.action == "create":
+            perms = [permissions.IsAuthenticated, ~IsModer]
+        elif self.action in ("update", "partial_update", "retrieve"):
+            perms = [permissions.IsAuthenticated, IsModer | IsOwner]
         else:
-            perms = [permissions.IsAuthenticated, ModerNoCreateNoDelete]
+            perms = [permissions.IsAuthenticated, IsOwner]
         return [p() for p in perms]
 
     def perform_create(self, serializer):
@@ -73,7 +114,15 @@ class LessonListCreateAPIView(generics.ListCreateAPIView):
 
     queryset = Lesson.objects.all().order_by("id")
     serializer_class = LessonSerializer
-    permission_classes = [permissions.IsAuthenticated, ModerNoCreateNoDelete]
+    pagination_class = DefaultPageNumberPagination
+
+    def get_permissions(self):
+        """GET — IsAuthenticated; POST — IsAuthenticated и НЕ модератор."""
+        if self.request.method == "GET":
+            perms = [permissions.IsAuthenticated]
+        else:
+            perms = [permissions.IsAuthenticated, ~IsModer]
+        return [p() for p in perms]
 
     def get_queryset(self):
         """Возвращает список уроков: всем модераторам или только свои для обычного пользователя."""
@@ -99,3 +148,9 @@ class LessonRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
     permission_classes = [permissions.IsAuthenticated, IsModer | IsOwner]
+
+    def get_permissions(self):
+        """Для DELETE — только владелец; для остальных — базовые правила класса."""
+        if self.request.method == "DELETE":
+            self.permission_classes = [permissions.IsAuthenticated, IsOwner]
+        return super().get_permissions()

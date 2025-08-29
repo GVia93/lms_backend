@@ -1,24 +1,6 @@
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 
-class IsModerOrOwner(BasePermission):
-    """
-    Доступ разрешён, если пользователь состоит в группе "Модераторы"
-    или является владельцем объекта.
-    """
-
-    def has_permission(self, request, view):
-        """
-        Базовое разрешение: всегда True,
-        так как проверка аутентификации выполняется IsAuthenticated.
-        """
-        return True
-
-    def has_object_permission(self, request, view, obj):
-        """Проверка прав на уровне объекта."""
-        return IsModer().has_permission(request, view) or IsOwner().has_object_permission(request, view, obj)
-
-
 class IsSelfOrStaff(BasePermission):
     """
     Доступ к изменению профиля:

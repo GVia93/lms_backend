@@ -6,6 +6,24 @@ from .models import Payment
 User = get_user_model()
 
 
+class PaymentCheckoutSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для оформления платежа через Stripe Checkout.
+
+    Возвращает:
+    - id: ID платежа;
+    - amount: сумма;
+    - payment_method: способ оплаты;
+    - checkout_url: ссылка на оплату (Stripe Checkout);
+    - status: текущий статус платежа.
+    """
+
+    class Meta:
+        model = Payment
+        fields = ("id", "amount", "payment_method", "checkout_url", "status")
+        read_only_fields = fields
+
+
 class PublicUserSerializer(serializers.ModelSerializer):
     """Публичный профиль пользователя (без фамилии, пароля и истории платежей)."""
 

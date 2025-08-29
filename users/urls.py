@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import PaymentListAPIView, UserViewSet, RegisterAPIView
+from .views import PaymentListAPIView, UserViewSet, RegisterAPIView, PaymentCheckoutAPIView, PaymentStatusAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -14,4 +14,6 @@ urlpatterns = [
     path("refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("", include(router.urls)),
     path("payments/", PaymentListAPIView.as_view(), name="payments-list"),
+    path("payments/checkout/", PaymentCheckoutAPIView.as_view(), name="payments-checkout"),
+    path("payments/status/<str:session_id>/", PaymentStatusAPIView.as_view(), name="payments-status"),
 ]

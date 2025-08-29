@@ -2,6 +2,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import generics, permissions, views, viewsets
 from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
@@ -52,6 +54,11 @@ class PaymentCheckoutAPIView(views.APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
+    @swagger_auto_schema(request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={'payment_id': openapi.Schema(type=openapi.TYPE_STRING, description='ID зарегиститрованного платежа')}
+    ),
+    responses={200: PaymentCheckoutSerializer()})
     def post(self, request, *args, **kwargs):
         """
         Инициирует оформление оплаты:

@@ -10,3 +10,4 @@ python-dotenv==1.1.1
 sqlparse==0.5.3
 drf-yasg==1.21.10
 stripe==12.5.0
+celery==5.5.3

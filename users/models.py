@@ -87,6 +87,7 @@ class Payment(models.Model):
 
     class Method(models.TextChoices):
         """Возможные способы оплаты."""
+
         CASH = "cash", "Наличные"
         TRANSFER = "transfer", "Перевод на счёт"
 
@@ -101,11 +102,18 @@ class Payment(models.Model):
         Lesson, on_delete=models.CASCADE, null=True, blank=True, related_name="payments"
     )
     amount = models.DecimalField(
-        "сумма", max_digits=10, decimal_places=2,
-        validators=[MinValueValidator(0)]
+        "сумма", max_digits=10, decimal_places=2, validators=[MinValueValidator(0)]
     )
     paid_at = models.DateTimeField("дата оплаты", auto_now_add=True, db_index=True)
-    payment_method = models.CharField("способ оплаты", max_length=16, choices=Method.choices)
+    payment_method = models.CharField(
+        "способ оплаты", max_length=16, choices=Method.choices
+    )
+    # Stripe
+    stripe_product_id = models.CharField(max_length=255, blank=True)
+    stripe_price_id = models.CharField(max_length=255, blank=True)
+    stripe_session_id = models.CharField(max_length=255, blank=True)
+    checkout_url = models.URLField(max_length=1024, blank=True)
+    status = models.CharField(max_length=32, blank=True, default="created")
 
     class Meta:
         verbose_name = "Платёж"

@@ -43,6 +43,8 @@ class Course(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="courses"
     )
+    updated_at = models.DateTimeField(auto_now=True)
+    last_notified_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Курс"

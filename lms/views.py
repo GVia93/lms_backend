@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, permissions, views, viewsets
 from rest_framework.response import Response
 
@@ -8,6 +11,7 @@ from users.permissions import IsModer, IsOwner
 from .models import Course, Lesson, Subscription
 from .paginators import DefaultPageNumberPagination
 from .serializers import CourseSerializer, LessonSerializer
+from .tasks import send_course_update_emails
 
 
 class SubscriptionToggleAPIView(views.APIView):
@@ -102,6 +106,14 @@ class CourseViewSet(viewsets.ModelViewSet):
         """При создании курса автоматически назначает владельцем текущего пользователя."""
         serializer.save(owner=self.request.user)
 
+    def perform_update(self, serializer):
+        """
+        Сохраняет изменения в курсе и запускает Celery-задачу
+        для рассылки уведомлений подписчикам об обновлении.
+        """
+        course = serializer.save()
+        send_course_update_emails.delay(course.id)
+
 
 class LessonListCreateAPIView(generics.ListCreateAPIView):
     """
@@ -154,3 +166,18 @@ class LessonRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method == "DELETE":
             self.permission_classes = [permissions.IsAuthenticated, IsOwner]
         return super().get_permissions()
+
+    def perform_update(self, serializer):
+        """
+        Обновляет урок и при необходимости запускает рассылку
+        уведомлений подписчикам курса об изменениях.
+
+        Уведомления отправляются только если курс ещё не уведомлялся
+        в последние 4 часа.
+        """
+        lesson = serializer.save()
+        course = lesson.course
+        now = timezone.now()
+
+        if not course.last_notified_at or (now - course.last_notified_at) >= timedelta(hours=4):
+            send_course_update_emails.delay(course.id)

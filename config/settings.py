@@ -171,3 +171,12 @@ CELERY_ACCEPT_CONTENT = ["json"]
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "noreply@example.com"
+
+# Beat: ежедневная проверка неактивных
+CELERY_BEAT_SCHEDULE = {
+    "deactivate-inactive-users-daily-3am": {
+        "task": "users.tasks.deactivate_inactive_users",
+        "schedule": timedelta(days=1),
+        "options": {"expires": 60},
+    },
+}
